@@ -1,5 +1,12 @@
 import type { Metadata } from "next";
+import { Cormorant_Garamond } from "next/font/google";
 import "./globals.css";
+
+const cormorant = Cormorant_Garamond({
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
+  variable: "--font-serif-display",
+});
 
 export const metadata: Metadata = {
   title: "Dunning Note AI | 더닝노트",
@@ -13,7 +20,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko" suppressHydrationWarning>
-      <body>{children}</body>
+      <body className={cormorant.variable}>{children}</body>
     </html>
   );
 }
