@@ -1,0 +1,27 @@
+# dependencies
+/node_modules
+
+# next.js
+/.next
+/out
+.next-dev.log
+.next-dev.err
+
+# production
+/build
+
+# local runtime used by Codex on machines without npm
+/.runtime
+
+# local env files
+.env*
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# misc
+.DS_Store
+*.zip
