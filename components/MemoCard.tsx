@@ -153,6 +153,18 @@ export function MemoCard({
               ))}
             </div>
           ) : null}
+          {memo.attachments && memo.attachments.length > 0 ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {memo.attachments.map((attachment) => (
+                <span
+                  key={attachment.id}
+                  className="rounded-full border border-stone-200 bg-stone-50 px-2.5 py-1 text-xs font-medium text-stone-500 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-400"
+                >
+                  {attachment.name} · {formatAttachmentSize(attachment.size)}
+                </span>
+              ))}
+            </div>
+          ) : null}
         </>
       )}
 
@@ -161,6 +173,18 @@ export function MemoCard({
       ) : null}
     </article>
   );
+}
+
+function formatAttachmentSize(size: number) {
+  if (size < 1024) {
+    return `${size} B`;
+  }
+
+  if (size < 1024 * 1024) {
+    return `${(size / 1024).toFixed(1)} KB`;
+  }
+
+  return `${(size / 1024 / 1024).toFixed(1)} MB`;
 }
 
 function ParaDecisionHelper({

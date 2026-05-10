@@ -4,6 +4,13 @@ export type ProjectStatus = "not_started" | "in_progress" | "paused" | "done";
 
 export type ThemeMode = "light" | "dark";
 
+export interface MemoAttachment {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+}
+
 export interface Memo {
   id: string;
   rawText: string;
@@ -13,6 +20,7 @@ export interface Memo {
   createdAt: string;
   updatedAt: string;
   tags?: string[];
+  attachments?: MemoAttachment[];
 }
 
 export interface ProjectTask {

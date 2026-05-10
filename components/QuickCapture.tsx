@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { createSummary, createTitle } from "@/lib/storage";
+import type { MemoAttachment } from "@/types";
 
 interface QuickCaptureProps {
-  onCreateMemo: (rawText: string) => void;
+  onCreateMemo: (rawText: string, attachments?: MemoAttachment[]) => void;
   variant?: "card" | "hero";
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { Edit, Menu, Moon, Settings, Sun } from "lucide-react";
+import { Menu } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { DashboardSummary } from "@/components/DashboardSummary";
 import { HeroCapture } from "@/components/HeroCapture";
@@ -8,6 +8,7 @@ import { MenuDrawer, type DrawerViewId } from "@/components/MenuDrawer";
 import { MemoCard } from "@/components/MemoCard";
 import { ParaBoard } from "@/components/ParaBoard";
 import { ProjectCard } from "@/components/ProjectCard";
+import { ProfileMenu } from "@/components/ProfileMenu";
 import { QuickCapture } from "@/components/QuickCapture";
 import { WeeklyReview } from "@/components/WeeklyReview";
 import {
@@ -18,66 +19,25 @@ import {
   createTitle,
   loadState,
   saveState,
+  STORAGE_KEY,
   THEME_KEY,
 } from "@/lib/storage";
 import type {
   AppState,
   Memo,
+  MemoAttachment,
   MemoCategory,
   ProjectItem,
   ThemeMode,
 } from "@/types";
 
 type ViewId = DrawerViewId;
-type PlanId = "free" | "pro" | "team" | "enterprise";
-
-const PLAN_OPTIONS: Array<{
-  id: PlanId;
-  label: string;
-  price: string;
-  description: string;
-}> = [
-  {
-    id: "free",
-    label: "FREE",
-    price: "₩0",
-    description: "개인 메모와 기본 PARA 정리",
-  },
-  {
-    id: "pro",
-    label: "PRO",
-    price: "₩9,900",
-    description: "AI 자동 분류와 주간 리뷰 강화",
-  },
-  {
-    id: "team",
-    label: "TEAM",
-    price: "₩29,000",
-    description: "팀 보드, 공유 프로젝트, 역할 관리",
-  },
-  {
-    id: "enterprise",
-    label: "ENTERPRISE",
-    price: "문의",
-    description: "보안, SSO, 조직 단위 워크스페이스",
-  },
-];
-
-const PROFILE_ACTIONS = [
-  "프로필 설정",
-  "계정 및 보안",
-  "알림 설정",
-  "데이터 내보내기",
-  "로그아웃",
-];
 
 export function DunningNoteApp() {
   const [state, setState] = useState<AppState | null>(null);
   const [activeView, setActiveView] = useState<ViewId>("capture");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isPlanMenuOpen, setIsPlanMenuOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<PlanId>("free");
   const [theme, setTheme] = useState<ThemeMode>("light");
 
   useEffect(() => {
@@ -104,7 +64,6 @@ export function DunningNoteApp() {
   const openView = (viewId: ViewId) => {
     setActiveView(viewId);
     setIsMenuOpen(false);
-    setIsPlanMenuOpen(false);
     setIsProfileMenuOpen(false);
   };
 
@@ -114,12 +73,10 @@ export function DunningNoteApp() {
     document.documentElement.classList.toggle("dark", nextTheme === "dark");
   };
 
-  const selectPlan = (planId: PlanId) => {
-    setSelectedPlan(planId);
-    setIsPlanMenuOpen(false);
-  };
-
-  const createMemo = (rawText: string) => {
+  const createMemo = (
+    rawText: string,
+    attachments: MemoAttachment[] = [],
+  ) => {
     const timestamp = new Date().toISOString();
     const memo: Memo = {
       id: createId("memo"),
@@ -129,6 +86,7 @@ export function DunningNoteApp() {
       summary: createSummary(rawText),
       createdAt: timestamp,
       updatedAt: timestamp,
+      ...(attachments.length > 0 ? { attachments } : {}),
     };
 
     setState((current) =>
@@ -248,6 +206,63 @@ export function DunningNoteApp() {
     );
   };
 
+  const openSettingsFromProfile = () => {
+    setIsMenuOpen(true);
+  };
+
+  const exportLocalData = () => {
+    if (!state) {
+      return;
+    }
+
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      storageKey: STORAGE_KEY,
+      theme: window.localStorage.getItem(THEME_KEY) ?? theme,
+      state,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = `dunning-note-ai-data-${new Date()
+      .toISOString()
+      .slice(0, 10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const showGuestLoginNotice = () => {
+    window.alert("로그인 / 회원가입은 다음 단계에서 연결할 예정입니다.");
+  };
+
+  const showDataManageNotice = () => {
+    window.alert(
+      "현재 MVP는 브라우저 localStorage에만 데이터를 저장합니다. 백업은 데이터 내보내기를 사용하세요.",
+    );
+  };
+
+  const showHelpNotice = () => {
+    window.alert("도움말 / 피드백 패널은 곧 추가할 예정입니다.");
+  };
+
+  const showPrivacyNotice = () => {
+    window.alert("개인정보 처리방침은 정식 서비스 단계에서 제공됩니다.");
+  };
+
+  const showTermsNotice = () => {
+    window.alert("서비스 이용약관은 정식 서비스 단계에서 제공됩니다.");
+  };
+
+  const showVersionNotice = () => {
+    window.alert("Dunning Note AI MVP v0.1.0");
+  };
+
   if (!state) {
     return (
       <main className="min-h-screen bg-[#f5f7f1] px-4 py-8 text-stone-900 dark:bg-stone-950 dark:text-stone-50">
@@ -296,116 +311,26 @@ export function DunningNoteApp() {
                   <span className="text-lg font-bold leading-none tracking-tighter text-white">
                     DN
                   </span>
-                  <span className="absolute right-0 top-0 h-2 w-2 translate-x-1/3 -translate-y-1/3 animate-pulse rounded-full bg-yellow-300" />
                 </span>
-                <span className="text-xl font-semibold tracking-wide text-stone-800 dark:text-gray-200">
+                <span className="text-base font-semibold tracking-wide text-stone-800 dark:text-gray-200 sm:text-xl">
                   Dunning Note
                 </span>
               </button>
             </div>
 
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                aria-label={theme === "dark" ? "라이트 모드로 변경" : "다크 모드로 변경"}
-                aria-pressed={theme === "dark"}
-                onClick={() => changeTheme(theme === "dark" ? "light" : "dark")}
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-stone-200 bg-white text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-950/20 dark:border-gray-700 dark:bg-[#1e1f20] dark:text-gray-300 dark:hover:bg-[#282a2c] dark:hover:text-white dark:focus-visible:ring-white/20"
-              >
-                {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
-              </button>
-              <div className="relative">
-                <button
-                  type="button"
-                  aria-haspopup="menu"
-                  aria-expanded={isPlanMenuOpen}
-                  onClick={() => {
-                    setIsPlanMenuOpen((current) => !current);
-                    setIsProfileMenuOpen(false);
-                  }}
-                  className="rounded-full border border-stone-200 bg-white px-3 py-1.5 text-sm font-semibold text-stone-700 transition-colors hover:bg-stone-100 hover:text-stone-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-950/20 dark:border-gray-700 dark:bg-[#1e1f20] dark:text-gray-300 dark:hover:bg-[#282a2c] dark:hover:text-white dark:focus-visible:ring-white/20"
-                >
-                  {PLAN_OPTIONS.find((plan) => plan.id === selectedPlan)?.label}
-                </button>
-                {isPlanMenuOpen ? (
-                  <div
-                    role="menu"
-                    className="absolute right-0 top-12 z-40 w-64 rounded-2xl border border-stone-200 bg-white p-2 shadow-2xl dark:border-gray-800 dark:bg-[#1e1f20]"
-                  >
-                    <p className="px-3 py-2 text-xs font-bold uppercase tracking-[0.14em] text-stone-400 dark:text-gray-500">
-                      구독 플랜
-                    </p>
-                    {PLAN_OPTIONS.map((plan) => (
-                      <button
-                        key={plan.id}
-                        type="button"
-                        role="menuitemradio"
-                        aria-checked={selectedPlan === plan.id}
-                        onClick={() => selectPlan(plan.id)}
-                        className={
-                          selectedPlan === plan.id
-                            ? "block w-full rounded-xl bg-stone-950 px-3 py-3 text-left text-white dark:bg-white dark:text-black"
-                            : "block w-full rounded-xl px-3 py-3 text-left text-stone-700 transition-colors hover:bg-stone-100 dark:text-gray-300 dark:hover:bg-[#282a2c]"
-                        }
-                      >
-                        <span className="flex items-center justify-between gap-3">
-                          <span className="text-sm font-semibold">
-                            {plan.label}
-                          </span>
-                          <span className="text-xs opacity-70">{plan.price}</span>
-                        </span>
-                        <span className="mt-1 block text-xs opacity-70">
-                          {plan.description}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-              <div className="relative">
-                <button
-                  type="button"
-                  aria-label="프로필 설정"
-                  aria-haspopup="menu"
-                  aria-expanded={isProfileMenuOpen}
-                  onClick={() => {
-                    setIsProfileMenuOpen((current) => !current);
-                    setIsPlanMenuOpen(false);
-                  }}
-                  className="h-8 w-8 rounded-full border-2 border-[#f7f8f4] bg-gradient-to-r from-cyan-400 to-blue-500 ring-2 ring-blue-500/40 transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/25 dark:border-[#131314] dark:ring-blue-500/50"
-                />
-                {isProfileMenuOpen ? (
-                  <div
-                    role="menu"
-                    className="absolute right-0 top-12 z-40 w-72 rounded-2xl border border-stone-200 bg-white p-3 shadow-2xl dark:border-gray-800 dark:bg-[#1e1f20]"
-                  >
-                    <div className="flex items-center gap-3 border-b border-stone-100 pb-3 dark:border-gray-800">
-                      <div className="h-10 w-10 rounded-full bg-gradient-to-r from-cyan-400 to-blue-500" />
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-stone-950 dark:text-white">
-                          정재현
-                        </p>
-                        <p className="truncate text-xs text-stone-500 dark:text-gray-400">
-                          jaehyun@dunning-note.local
-                        </p>
-                      </div>
-                    </div>
-                    <div className="mt-2 space-y-1">
-                      {PROFILE_ACTIONS.map((action) => (
-                        <button
-                          key={action}
-                          type="button"
-                          role="menuitem"
-                          className="block w-full rounded-xl px-3 py-2.5 text-left text-sm font-medium text-stone-700 transition-colors hover:bg-stone-100 dark:text-gray-300 dark:hover:bg-[#282a2c]"
-                        >
-                          {action}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            </div>
+            <ProfileMenu
+              isOpen={isProfileMenuOpen}
+              onToggle={() => setIsProfileMenuOpen((current) => !current)}
+              onClose={() => setIsProfileMenuOpen(false)}
+              onOpenSettings={openSettingsFromProfile}
+              onExportData={exportLocalData}
+              onLoginClick={showGuestLoginNotice}
+              onDataManageClick={showDataManageNotice}
+              onHelpClick={showHelpNotice}
+              onPrivacyClick={showPrivacyNotice}
+              onTermsClick={showTermsNotice}
+              onVersionClick={showVersionNotice}
+            />
           </nav>
         ) : (
           <button
@@ -431,40 +356,13 @@ export function DunningNoteApp() {
         onThemeChange={changeTheme}
       />
 
-      {isCaptureView ? (
-        <>
-          <aside className="fixed left-0 top-1/2 z-20 hidden -translate-y-1/2 flex-col gap-4 p-4 md:flex">
-            <button
-              type="button"
-              aria-label="새 메모"
-              className="rounded-full border border-stone-200 bg-white p-3 text-stone-500 shadow-sm transition-colors hover:bg-stone-100 hover:text-stone-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-950/20 dark:border-gray-800 dark:bg-[#1e1f20] dark:text-gray-400 dark:hover:bg-[#282a2c] dark:hover:text-white dark:focus-visible:ring-white/20"
-            >
-              <Edit size={20} />
-            </button>
-          </aside>
-          <div className="fixed bottom-4 left-4 z-20 hidden md:block">
-            <button
-              type="button"
-              aria-label="설정"
-              onClick={() => setIsMenuOpen(true)}
-              className="rounded-full p-3 text-stone-500 transition-colors hover:bg-stone-200 hover:text-stone-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-950/20 dark:text-gray-400 dark:hover:bg-[#282a2c] dark:hover:text-white dark:focus-visible:ring-white/20"
-            >
-              <Settings size={20} />
-            </button>
-          </div>
-        </>
-      ) : null}
-
       <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {activeView === "capture" ? (
           <section className="relative mx-auto flex min-h-[calc(100vh-88px)] w-full max-w-3xl flex-col items-center justify-center px-0 pb-32">
             <div className="absolute left-1/4 top-1/4 -z-10 h-64 w-64 rounded-full bg-emerald-300/20 blur-3xl dark:bg-emerald-900/10" />
             <div className="absolute bottom-1/4 right-1/4 -z-10 h-64 w-64 rounded-full bg-blue-300/20 blur-3xl dark:bg-blue-900/10" />
 
-            <div className="mb-12 w-full text-center">
-              <h2 className="mb-2 text-2xl font-medium tracking-tight text-stone-500 dark:text-gray-400">
-                정재현님, 안녕하세요
-              </h2>
+            <div className="mb-10 w-full text-center">
               <h1 className="text-4xl font-semibold leading-tight text-stone-950 dark:text-white sm:text-5xl">
                 메모를 실행으로 바꿔드릴게요.
               </h1>
@@ -473,7 +371,7 @@ export function DunningNoteApp() {
             <HeroCapture onCreateMemo={createMemo} variant="landing" />
 
             <div className="mt-8 flex items-center justify-center gap-2 text-center text-xs text-stone-500 dark:text-gray-500">
-              Inbox에 저장되고 PARA 방법론에 따라 AI가 자동 정리합니다.
+              Inbox에 저장되고 PARA로 정리됩니다.
             </div>
           </section>
         ) : null}
