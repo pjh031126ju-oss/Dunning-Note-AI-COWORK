@@ -358,17 +358,22 @@ export function DunningNoteApp() {
 
       <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {activeView === "capture" ? (
-          <section className="relative mx-auto flex min-h-[calc(100vh-88px)] w-full max-w-3xl flex-col items-center justify-center px-0 pb-32">
+          <section className="relative mx-auto flex min-h-[calc(100vh-88px)] w-full max-w-5xl flex-col items-center justify-center px-0 pb-32">
             <div className="absolute left-1/4 top-1/4 -z-10 h-64 w-64 rounded-full bg-emerald-300/20 blur-3xl dark:bg-emerald-900/10" />
             <div className="absolute bottom-1/4 right-1/4 -z-10 h-64 w-64 rounded-full bg-blue-300/20 blur-3xl dark:bg-blue-900/10" />
 
             <div className="mb-10 w-full text-center">
-              <h1 className="text-4xl font-semibold leading-tight text-stone-950 dark:text-white sm:text-5xl">
-                메모를 실행으로 바꿔드릴게요.
+              <h1 className="font-display-serif text-6xl font-semibold leading-none text-[#1d2820] dark:text-stone-50 sm:text-8xl lg:text-9xl">
+                Dunning Note <span className="text-[#6f8f73]">AI</span>
               </h1>
+              <p className="mt-5 text-sm font-medium leading-6 text-stone-500 dark:text-stone-400 sm:text-base">
+                메모를 실행으로 바꿔드릴게요.
+              </p>
             </div>
 
-            <HeroCapture onCreateMemo={createMemo} variant="landing" />
+            <div className="w-full max-w-3xl">
+              <HeroCapture onCreateMemo={createMemo} variant="landing" />
+            </div>
 
             <div className="mt-8 flex items-center justify-center gap-2 text-center text-xs text-stone-500 dark:text-gray-500">
               Inbox에 저장되고 PARA로 정리됩니다.

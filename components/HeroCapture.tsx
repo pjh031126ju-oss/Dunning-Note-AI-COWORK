@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUp, Plus, X } from "lucide-react";
+import { ArrowUp, Image as ImageIcon, Paperclip, Plus, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { MemoAttachment } from "@/types";
 
@@ -15,8 +15,11 @@ export function HeroCapture({
 }: HeroCaptureProps) {
   const [rawText, setRawText] = useState("");
   const [attachments, setAttachments] = useState<MemoAttachment[]>([]);
+  const [isUploadMenuOpen, setIsUploadMenuOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const documentFileInputRef = useRef<HTMLInputElement>(null);
+  const imageFileInputRef = useRef<HTMLInputElement>(null);
+  const uploadMenuRef = useRef<HTMLDivElement>(null);
   const isLanding = variant === "landing";
 
   useEffect(() => {
@@ -29,6 +32,37 @@ export function HeroCapture({
     textarea.style.height = `${Math.min(textarea.scrollHeight, 160)}px`;
   }, [rawText]);
 
+  useEffect(() => {
+    if (!isUploadMenuOpen) {
+      return;
+    }
+
+    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
+      const target = event.target;
+      if (target instanceof Node && uploadMenuRef.current?.contains(target)) {
+        return;
+      }
+
+      setIsUploadMenuOpen(false);
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsUploadMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("touchstart", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("touchstart", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isUploadMenuOpen]);
+
   const submitMemo = () => {
     if (!rawText.trim()) {
       return;
@@ -37,6 +71,7 @@ export function HeroCapture({
     onCreateMemo(rawText, attachments);
     setRawText("");
     setAttachments([]);
+    setIsUploadMenuOpen(false);
   };
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -58,6 +93,7 @@ export function HeroCapture({
     }));
 
     setAttachments((current) => [...current, ...nextAttachments]);
+    setIsUploadMenuOpen(false);
     event.target.value = "";
   };
 
@@ -82,14 +118,24 @@ export function HeroCapture({
       className={isLanding ? "w-full" : "w-full max-w-4xl px-2 sm:px-0"}
     >
       {isLanding ? (
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*,application/pdf,text/*"
-          multiple
-          className="sr-only"
-          onChange={handleFileChange}
-        />
+        <>
+          <input
+            ref={documentFileInputRef}
+            type="file"
+            accept="application/pdf,text/*"
+            multiple
+            className="sr-only"
+            onChange={handleFileChange}
+          />
+          <input
+            ref={imageFileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="sr-only"
+            onChange={handleFileChange}
+          />
+        </>
       ) : null}
       <div className={isLanding ? "group relative" : ""}>
         {isLanding ? (
@@ -103,14 +149,50 @@ export function HeroCapture({
           }
         >
           {isLanding ? (
-            <button
-              type="button"
-              aria-label="파일 추가"
-              onClick={() => fileInputRef.current?.click()}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-stone-400 transition hover:bg-[#f2f5ee] hover:text-[#58765f] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-100 dark:text-gray-400 dark:hover:bg-[#282a2c] dark:hover:text-emerald-100 dark:focus-visible:ring-emerald-900"
-            >
-              <Plus size={20} aria-hidden="true" />
-            </button>
+            <div ref={uploadMenuRef} className="relative shrink-0">
+              <button
+                type="button"
+                aria-label="파일 추가"
+                aria-haspopup="menu"
+                aria-expanded={isUploadMenuOpen}
+                onClick={() => setIsUploadMenuOpen((current) => !current)}
+                className="flex h-11 w-11 items-center justify-center rounded-full text-stone-400 transition hover:bg-[#f2f5ee] hover:text-[#58765f] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-100 dark:text-gray-400 dark:hover:bg-[#282a2c] dark:hover:text-emerald-100 dark:focus-visible:ring-emerald-900"
+              >
+                <Plus size={20} aria-hidden="true" />
+              </button>
+
+              {isUploadMenuOpen ? (
+                <div
+                  role="menu"
+                  className="absolute left-0 top-14 z-40 w-44 rounded-2xl border border-[#dce7d8] bg-white/95 p-2 shadow-[0_18px_50px_rgba(35,48,38,0.16)] backdrop-blur dark:border-stone-700 dark:bg-[#1e1f20]/95"
+                >
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setIsUploadMenuOpen(false);
+                      documentFileInputRef.current?.click();
+                    }}
+                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-stone-700 transition hover:bg-[#f4f7f0] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-100 dark:text-stone-200 dark:hover:bg-stone-800 dark:focus-visible:ring-emerald-900"
+                  >
+                    <Paperclip size={17} aria-hidden="true" />
+                    파일 업로드
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setIsUploadMenuOpen(false);
+                      imageFileInputRef.current?.click();
+                    }}
+                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-stone-700 transition hover:bg-[#f4f7f0] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-100 dark:text-stone-200 dark:hover:bg-stone-800 dark:focus-visible:ring-emerald-900"
+                  >
+                    <ImageIcon size={17} aria-hidden="true" />
+                    사진 업로드
+                  </button>
+                </div>
+              ) : null}
+            </div>
           ) : null}
           <textarea
             ref={textareaRef}
