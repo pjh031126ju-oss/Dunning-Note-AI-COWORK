@@ -1,15 +1,17 @@
 "use client";
 
 import { Menu } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { DashboardSummary } from "@/components/DashboardSummary";
+import { type ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import { AllMemosView } from "@/components/AllMemosView";
+import { ArchiveView } from "@/components/ArchiveView";
+import { ExecutionBoard } from "@/components/ExecutionBoard";
+import { HelpFeedbackView } from "@/components/HelpFeedbackView";
 import { HeroCapture } from "@/components/HeroCapture";
 import { MenuDrawer, type DrawerViewId } from "@/components/MenuDrawer";
-import { MemoCard } from "@/components/MemoCard";
 import { ParaBoard } from "@/components/ParaBoard";
-import { ProjectCard } from "@/components/ProjectCard";
 import { ProfileMenu } from "@/components/ProfileMenu";
-import { QuickCapture } from "@/components/QuickCapture";
+import { SearchView } from "@/components/SearchView";
+import { SettingsPanel } from "@/components/SettingsPanel";
 import { WeeklyReview } from "@/components/WeeklyReview";
 import {
   calculateProgress,
@@ -30,23 +32,55 @@ import type {
   ProjectItem,
   ThemeMode,
 } from "@/types";
+import { getDaysOld } from "@/lib/date";
 
 type ViewId = DrawerViewId;
+
+const getResolvedTheme = (mode: ThemeMode) => {
+  if (mode !== "system") {
+    return mode;
+  }
+
+  return window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
+};
+
+const applyThemeMode = (mode: ThemeMode) => {
+  document.documentElement.classList.toggle(
+    "dark",
+    getResolvedTheme(mode) === "dark",
+  );
+};
+
+const isAppState = (value: unknown): value is AppState => {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as Partial<AppState>;
+  return Array.isArray(candidate.memos) && Array.isArray(candidate.projects);
+};
 
 export function DunningNoteApp() {
   const [state, setState] = useState<AppState | null>(null);
   const [activeView, setActiveView] = useState<ViewId>("capture");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [theme, setTheme] = useState<ThemeMode>("light");
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setState(loadState());
     const storedTheme = window.localStorage.getItem(THEME_KEY);
-    const nextTheme: ThemeMode = storedTheme === "dark" ? "dark" : "light";
+    const nextTheme: ThemeMode =
+      storedTheme === "dark" || storedTheme === "system"
+        ? storedTheme
+        : "light";
 
     setTheme(nextTheme);
-    document.documentElement.classList.toggle("dark", nextTheme === "dark");
+    applyThemeMode(nextTheme);
   }, []);
 
   useEffect(() => {
@@ -55,22 +89,73 @@ export function DunningNoteApp() {
     }
   }, [state]);
 
+  useEffect(() => {
+    if (theme !== "system") {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleSystemThemeChange = () => applyThemeMode("system");
+
+    mediaQuery.addEventListener("change", handleSystemThemeChange);
+
+    return () => {
+      mediaQuery.removeEventListener("change", handleSystemThemeChange);
+    };
+  }, [theme]);
+
   const inboxMemos = useMemo(
     () => state?.memos.filter((memo) => memo.category === "INBOX") ?? [],
     [state],
   );
+  const activeProjects = useMemo(
+    () =>
+      state?.projects.filter((project) => {
+        const memo = state.memos.find((item) => item.id === project.memoId);
+        return (
+          memo?.category === "PROJECT" &&
+          project.status !== "done" &&
+          project.progress < 100
+        );
+      }) ?? [],
+    [state],
+  );
+  const reviewNeedCount = useMemo(() => {
+    if (!state) {
+      return 0;
+    }
+
+    const oldInboxCount = state.memos.filter(
+      (memo) => memo.category === "INBOX" && getDaysOld(memo.createdAt) >= 7,
+    ).length;
+    const stalledProjectCount = state.projects.filter((project) => {
+      const memo = state.memos.find((item) => item.id === project.memoId);
+      return (
+        memo?.category === "PROJECT" &&
+        project.status !== "done" &&
+        project.progress < 100 &&
+        getDaysOld(project.updatedAt) >= 5
+      );
+    }).length;
+    const archiveCandidateCount = state.memos.filter(
+      (memo) => memo.category === "RESOURCE" && getDaysOld(memo.updatedAt) >= 30,
+    ).length;
+
+    return oldInboxCount + stalledProjectCount + archiveCandidateCount;
+  }, [state]);
   const isCaptureView = activeView === "capture";
 
   const openView = (viewId: ViewId) => {
     setActiveView(viewId);
     setIsMenuOpen(false);
     setIsProfileMenuOpen(false);
+    setIsSettingsOpen(false);
   };
 
   const changeTheme = (nextTheme: ThemeMode) => {
     setTheme(nextTheme);
     window.localStorage.setItem(THEME_KEY, nextTheme);
-    document.documentElement.classList.toggle("dark", nextTheme === "dark");
+    applyThemeMode(nextTheme);
   };
 
   const createMemo = (
@@ -207,7 +292,7 @@ export function DunningNoteApp() {
   };
 
   const openSettingsFromProfile = () => {
-    setIsMenuOpen(true);
+    setIsSettingsOpen(true);
   };
 
   const exportLocalData = () => {
@@ -241,14 +326,70 @@ export function DunningNoteApp() {
     window.alert("로그인 / 회원가입은 다음 단계에서 연결할 예정입니다.");
   };
 
-  const showDataManageNotice = () => {
-    window.alert(
-      "현재 MVP는 브라우저 localStorage에만 데이터를 저장합니다. 백업은 데이터 내보내기를 사용하세요.",
-    );
+  const openHelpFromProfile = () => {
+    openView("help");
   };
 
-  const showHelpNotice = () => {
-    window.alert("도움말 / 피드백 패널은 곧 추가할 예정입니다.");
+  const openImportPicker = () => {
+    importInputRef.current?.click();
+  };
+
+  const importLocalData = (file: File) => {
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(String(reader.result));
+        const candidate = isAppState(parsed)
+          ? parsed
+          : parsed && typeof parsed === "object"
+            ? (parsed as { state?: unknown }).state
+            : null;
+
+        if (!isAppState(candidate)) {
+          window.alert("더닝노트 JSON 데이터 형식이 아닙니다.");
+          return;
+        }
+
+        if (
+          !window.confirm(
+            "가져온 데이터로 현재 메모를 덮어쓸까요? 기존 데이터는 먼저 내보내기를 권장합니다.",
+          )
+        ) {
+          return;
+        }
+
+        setState(candidate);
+        window.alert("데이터를 가져왔습니다.");
+      } catch {
+        window.alert("JSON 파일을 읽지 못했습니다.");
+      }
+    };
+
+    reader.readAsText(file);
+  };
+
+  const handleImportFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const [file] = Array.from(event.target.files ?? []);
+    if (file) {
+      importLocalData(file);
+    }
+    event.target.value = "";
+  };
+
+  const resetLocalData = () => {
+    if (
+      !window.confirm(
+        "정말 모든 메모와 실행 항목을 초기화할까요? 이 작업은 되돌릴 수 없습니다.",
+      )
+    ) {
+      return;
+    }
+
+    window.localStorage.removeItem(STORAGE_KEY);
+    setState({ memos: [], projects: [] });
+    setActiveView("capture");
+    setIsSettingsOpen(false);
   };
 
   const showPrivacyNotice = () => {
@@ -324,9 +465,10 @@ export function DunningNoteApp() {
               onClose={() => setIsProfileMenuOpen(false)}
               onOpenSettings={openSettingsFromProfile}
               onExportData={exportLocalData}
+              onImportData={openImportPicker}
+              onResetData={resetLocalData}
               onLoginClick={showGuestLoginNotice}
-              onDataManageClick={showDataManageNotice}
-              onHelpClick={showHelpNotice}
+              onHelpClick={openHelpFromProfile}
               onPrivacyClick={showPrivacyNotice}
               onTermsClick={showTermsNotice}
               onVersionClick={showVersionNotice}
@@ -350,10 +492,26 @@ export function DunningNoteApp() {
       <MenuDrawer
         activeView={activeView}
         isOpen={isMenuOpen}
-        theme={theme}
         onClose={() => setIsMenuOpen(false)}
         onOpenView={openView}
+      />
+
+      <SettingsPanel
+        isOpen={isSettingsOpen}
+        theme={theme}
+        onClose={() => setIsSettingsOpen(false)}
         onThemeChange={changeTheme}
+        onExportData={exportLocalData}
+        onImportData={openImportPicker}
+        onResetData={resetLocalData}
+      />
+
+      <input
+        ref={importInputRef}
+        type="file"
+        accept="application/json"
+        className="sr-only"
+        onChange={handleImportFileChange}
       />
 
       <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -381,41 +539,53 @@ export function DunningNoteApp() {
           </section>
         ) : null}
 
-        {activeView === "dashboard" ? (
-          <section className="space-y-5 py-4">
-            <ViewHeader title="대시보드" />
-            <DashboardSummary memos={state.memos} projects={state.projects} />
+        {activeView === "capture" ? (
+          <HomeSummaryStrip
+            totalMemoCount={state.memos.length}
+            inboxMemoCount={inboxMemos.length}
+            activeProjectCount={activeProjects.length}
+            reviewNeedCount={reviewNeedCount}
+          />
+        ) : null}
+
+        {activeView === "all-memos" ? (
+          <section className="space-y-4 py-4">
+            <ViewHeader
+              title="전체 메모"
+              description="기록한 모든 메모를 한곳에서 보고, 미분류와 첨부 메모를 빠르게 걸러봅니다."
+            />
+            <AllMemosView
+              memos={state.memos}
+              projects={state.projects}
+              onMove={moveMemo}
+              onUpdate={updateMemo}
+              onDelete={deleteMemo}
+              onOpenHome={() => openView("capture")}
+            />
           </section>
         ) : null}
 
-        {activeView === "inbox" ? (
+        {activeView === "search" ? (
           <section className="space-y-4 py-4">
-            <ViewHeader title="Inbox" />
-            <QuickCapture onCreateMemo={createMemo} />
-            <div className="grid gap-4 lg:grid-cols-2">
-              {inboxMemos.length === 0 ? (
-                <p className="rounded-lg border border-emerald-100 bg-white px-4 py-8 text-center text-sm text-stone-500 shadow-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400 lg:col-span-2">
-                  Inbox가 비어 있습니다.
-                </p>
-              ) : (
-                inboxMemos.map((memo) => (
-                  <MemoCard
-                    key={memo.id}
-                    memo={memo}
-                    showDecisionHelper
-                    onMove={moveMemo}
-                    onUpdate={updateMemo}
-                    onDelete={deleteMemo}
-                  />
-                ))
-              )}
-            </div>
+            <ViewHeader
+              title="검색"
+              description="제목, 내용, 요약, 태그를 기준으로 메모를 찾습니다."
+            />
+            <SearchView
+              memos={state.memos}
+              onMove={moveMemo}
+              onUpdate={updateMemo}
+              onDelete={deleteMemo}
+            />
           </section>
         ) : null}
 
         {activeView === "para" ? (
           <section className="space-y-4 py-4">
-            <ViewHeader title="PARA" />
+            <ViewHeader
+              title="PARA 보드"
+              description="메모를 Project, Area, Resource, Archive로 정리합니다."
+            />
             <ParaBoard
               memos={state.memos}
               projects={state.projects}
@@ -427,32 +597,28 @@ export function DunningNoteApp() {
           </section>
         ) : null}
 
-        {activeView === "projects" ? (
+        {activeView === "execution" ? (
           <section className="space-y-4 py-4">
-            <ViewHeader title="Projects" />
-            <div className="grid gap-4 lg:grid-cols-2">
-              {state.projects.length === 0 ? (
-                <p className="rounded-lg border border-emerald-100 bg-white px-4 py-8 text-center text-sm text-stone-500 shadow-sm dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400 lg:col-span-2">
-                  프로젝트가 없습니다.
-                </p>
-              ) : (
-                state.projects.map((project) => (
-                  <ProjectCard
-                    key={project.id}
-                    project={project}
-                    onUpdate={updateProject}
-                    onMove={moveMemo}
-                    onDelete={deleteMemo}
-                  />
-                ))
-              )}
-            </div>
+            <ViewHeader
+              title="실행 보드"
+              description="Project로 정리된 메모를 오늘 할 일, 진행 중, 멈춘 항목, 완료됨으로 봅니다."
+            />
+            <ExecutionBoard
+              memos={state.memos}
+              projects={state.projects}
+              onUpdateProject={updateProject}
+              onMoveMemo={moveMemo}
+              onDeleteMemo={deleteMemo}
+            />
           </section>
         ) : null}
 
         {activeView === "review" ? (
           <section className="space-y-4 py-4">
-            <ViewHeader title="주간 리뷰" />
+            <ViewHeader
+              title="주간 리뷰"
+              description="오래된 메모와 멈춘 실행 항목, 보관 후보를 정리합니다."
+            />
             <WeeklyReview
               memos={state.memos}
               projects={state.projects}
@@ -460,6 +626,30 @@ export function DunningNoteApp() {
               onMoveMemo={moveMemo}
               onCompleteReview={completeWeeklyReview}
             />
+          </section>
+        ) : null}
+
+        {activeView === "archive" ? (
+          <section className="space-y-4 py-4">
+            <ViewHeader
+              title="Archive"
+              description="완료되었거나 당장 필요하지 않은 메모를 보관합니다."
+            />
+            <ArchiveView
+              memos={state.memos}
+              onRestore={(memoId) => moveMemo(memoId, "INBOX")}
+              onDelete={deleteMemo}
+            />
+          </section>
+        ) : null}
+
+        {activeView === "help" ? (
+          <section className="space-y-4 py-4">
+            <ViewHeader
+              title="도움말 / 피드백"
+              description="더닝노트의 저장 방식과 PARA 흐름을 확인합니다."
+            />
+            <HelpFeedbackView />
           </section>
         ) : null}
       </div>
@@ -497,12 +687,60 @@ function DunningCurveBackground() {
   );
 }
 
-function ViewHeader({ title }: { title: string }) {
+function HomeSummaryStrip({
+  totalMemoCount,
+  inboxMemoCount,
+  activeProjectCount,
+  reviewNeedCount,
+}: {
+  totalMemoCount: number;
+  inboxMemoCount: number;
+  activeProjectCount: number;
+  reviewNeedCount: number;
+}) {
+  const items = [
+    { label: "전체 메모 수", value: totalMemoCount },
+    { label: "미분류 메모 수", value: inboxMemoCount },
+    { label: "진행 중 실행 항목 수", value: activeProjectCount },
+    { label: "주간 리뷰 필요 항목 수", value: reviewNeedCount },
+  ];
+
   return (
-    <div className="flex items-center justify-between">
+    <section className="mx-auto grid max-w-5xl gap-3 pb-10 sm:grid-cols-2 lg:grid-cols-4">
+      {items.map((item) => (
+        <article
+          key={item.label}
+          className="rounded-2xl border border-[#dfe7da] bg-white/70 p-4 shadow-sm backdrop-blur dark:border-stone-700 dark:bg-stone-900/70"
+        >
+          <p className="text-sm font-medium text-stone-500 dark:text-stone-400">
+            {item.label}
+          </p>
+          <p className="mt-2 text-3xl font-bold text-stone-900 dark:text-stone-50">
+            {item.value}
+          </p>
+        </article>
+      ))}
+    </section>
+  );
+}
+
+function ViewHeader({
+  title,
+  description,
+}: {
+  title: string;
+  description?: string;
+}) {
+  return (
+    <div>
       <h1 className="text-2xl font-bold text-stone-950 dark:text-stone-50">
         {title}
       </h1>
+      {description ? (
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-500 dark:text-stone-400">
+          {description}
+        </p>
+      ) : null}
     </div>
   );
 }

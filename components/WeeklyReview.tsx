@@ -58,7 +58,7 @@ export function WeeklyReview({
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <ReviewPanel title="오래된 Inbox" count={oldInbox.length}>
+        <ReviewPanel title="오래된 메모" count={oldInbox.length}>
           {oldInbox.map((memo) => (
             <ReviewMemoRow
               key={memo.id}
@@ -70,7 +70,7 @@ export function WeeklyReview({
           ))}
         </ReviewPanel>
 
-        <ReviewPanel title="멈춘 Project" count={stalledProjects.length}>
+        <ReviewPanel title="멈춘 실행 항목" count={stalledProjects.length}>
           {stalledProjects.map((project) => (
             <ReviewMemoRow
               key={project.id}
@@ -81,7 +81,7 @@ export function WeeklyReview({
         </ReviewPanel>
 
         <ReviewPanel
-          title="Archive 후보 Resource"
+          title="Archive 후보"
           count={archiveCandidateResources.length}
         >
           {archiveCandidateResources.map((memo) => (
@@ -95,7 +95,7 @@ export function WeeklyReview({
           ))}
         </ReviewPanel>
 
-        <ReviewPanel title="완료된 Project" count={completedProjects.length}>
+        <ReviewPanel title="완료된 항목" count={completedProjects.length}>
           {completedProjects.map((project) => (
             <ReviewMemoRow
               key={project.id}

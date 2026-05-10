@@ -8,8 +8,9 @@ interface ProfileMenuProps {
   onClose: () => void;
   onOpenSettings: () => void;
   onExportData: () => void;
+  onImportData: () => void;
+  onResetData: () => void;
   onLoginClick: () => void;
-  onDataManageClick: () => void;
   onHelpClick: () => void;
   onPrivacyClick: () => void;
   onTermsClick: () => void;
@@ -22,8 +23,9 @@ export function ProfileMenu({
   onClose,
   onOpenSettings,
   onExportData,
+  onImportData,
+  onResetData,
   onLoginClick,
-  onDataManageClick,
   onHelpClick,
   onPrivacyClick,
   onTermsClick,
@@ -105,12 +107,17 @@ export function ProfileMenu({
           <div className="mt-3 space-y-1">
             <ProfileMenuItem label="설정" onClick={() => runAndClose(onOpenSettings)} />
             <ProfileMenuItem
-              label="데이터 관리"
-              onClick={() => runAndClose(onDataManageClick)}
-            />
-            <ProfileMenuItem
               label="데이터 내보내기"
               onClick={() => runAndClose(onExportData)}
+            />
+            <ProfileMenuItem
+              label="데이터 가져오기"
+              onClick={() => runAndClose(onImportData)}
+            />
+            <ProfileMenuItem
+              label="데이터 초기화"
+              danger
+              onClick={() => runAndClose(onResetData)}
             />
             <ProfileMenuItem
               label="도움말 / 피드백"
@@ -145,10 +152,12 @@ function ProfileMenuItem({
   label,
   onClick,
   variant = "default",
+  danger = false,
 }: {
   label: string;
   onClick: () => void;
   variant?: "default" | "footer";
+  danger?: boolean;
 }) {
   return (
     <button
@@ -156,7 +165,9 @@ function ProfileMenuItem({
       role="menuitem"
       onClick={onClick}
       className={
-        variant === "footer"
+        danger
+          ? "block w-full rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-rose-600 transition hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-100 dark:text-rose-300 dark:hover:bg-rose-950 dark:focus-visible:ring-rose-950"
+          : variant === "footer"
           ? "block w-full rounded-xl px-3 py-2 text-left text-xs font-medium text-stone-500 transition hover:bg-stone-50 hover:text-stone-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-100 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100 dark:focus-visible:ring-emerald-900"
           : "block w-full rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-stone-700 transition hover:bg-[#f4f7f0] hover:text-stone-950 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-100 dark:text-stone-200 dark:hover:bg-stone-800 dark:hover:text-white dark:focus-visible:ring-emerald-900"
       }

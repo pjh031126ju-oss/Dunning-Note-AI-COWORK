@@ -2,7 +2,7 @@ export type MemoCategory = "INBOX" | "PROJECT" | "AREA" | "RESOURCE" | "ARCHIVE"
 
 export type ProjectStatus = "not_started" | "in_progress" | "paused" | "done";
 
-export type ThemeMode = "light" | "dark";
+export type ThemeMode = "light" | "dark" | "system";
 
 export interface MemoAttachment {
   id: string;
